@@ -11,9 +11,22 @@ import { DEFAULT_FLAVOR_ATTRIBUTES } from '../data/defaultFlavorAttributes';
 const attributesCol = collection(db, 'flavorAttributes');
 
 /**
+ * Versión síncrona para el caso sin organización (el más común: catador
+ * invitado, sesión sin organización asociada). No toca red ni devuelve una
+ * Promise, así se puede usar directo como estado inicial de un useState y
+ * evitar el ciclo de "loading" + repintado que se generaba al envolver en
+ * async un resultado que ya estaba disponible en memoria.
+ */
+export function getDefaultFlavorAttributes(): FlavorAttribute[] {
+  return DEFAULT_FLAVOR_ATTRIBUTES;
+}
+
+/**
  * Devuelve el catálogo combinado: defaults del sistema (hardcoded, no requieren
  * red) + los custom de la organización del usuario (vienen de Firestore).
- * Si organizationId es null/undefined, devuelve solo los defaults.
+ * Si organizationId es null/undefined, devuelve solo los defaults SIN tocar
+ * Firestore (mismo dato que getDefaultFlavorAttributes, pero como Promise
+ * para quien necesite mantener una firma async uniforme).
  */
 export async function getFlavorAttributesForOrg(
   organizationId: string | null

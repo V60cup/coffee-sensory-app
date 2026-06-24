@@ -15,6 +15,7 @@ import { SessionCoffee, FlavorAttribute } from '../types/domain';
 import { listenToCoffees } from '../services/sessionService';
 
 import {
+  getDefaultFlavorAttributes,
   getFlavorAttributesForOrg,
   indexAttributesById,
 } from '../services/flavorAttributeService';
@@ -27,17 +28,28 @@ interface Props {
   sessionId: string;
   userId: string;
   displayName: string;
+  /** organizationId del catador actual, si pertenece a alguna. null en el caso típico de catador invitado. */
+  organizationId?: string | null;
 }
 
 export function TasterScoringScreen({
   sessionId,
   userId,
   displayName,
+  organizationId = null,
 }: Props) {
   const [coffees, setCoffees] = useState<SessionCoffee[]>([]);
   const [selectedCoffeeId, setSelectedCoffeeId] = useState<string | null>(null);
-  const [attributes, setAttributes] = useState<FlavorAttribute[]>([]);
-  const [isLoadingAttributes, setIsLoadingAttributes] = useState(true);
+
+  // Estado inicial síncrono: los defaults ya están en memoria, no hace falta
+  // pasar por un ciclo de "loading" para mostrarlos. Esto es lo que el catador
+  // ve en el primer frame, sin esperar ningún round-trip de red.
+  const [attributes, setAttributes] = useState<FlavorAttribute[]>(
+    getDefaultFlavorAttributes
+  );
+  // Solo entra en estado "loading" cuando SÍ hay que ir a buscar descriptores
+  // custom de una organización a Firestore. Sin organización, nunca se activa.
+  const [isLoadingAttributes, setIsLoadingAttributes] = useState(false);
   const [attributesError, setAttributesError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,6 +75,15 @@ export function TasterScoringScreen({
   }, [sessionId]);
 
   useEffect(() => {
+    // Sin organización: ya tenemos los defaults desde el estado inicial,
+    // no hay nada más que cargar.
+    if (!organizationId) {
+      setAttributes(getDefaultFlavorAttributes());
+      setIsLoadingAttributes(false);
+      setAttributesError(null);
+      return;
+    }
+
     let mounted = true;
 
     async function loadAttributes() {
@@ -70,7 +91,7 @@ export function TasterScoringScreen({
         setIsLoadingAttributes(true);
         setAttributesError(null);
 
-        const list = await getFlavorAttributesForOrg(null);
+        const list = await getFlavorAttributesForOrg(organizationId);
 
         if (mounted) {
           setAttributes(list);
@@ -95,7 +116,7 @@ export function TasterScoringScreen({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [organizationId]);
 
   const attributesById = useMemo(
     () => indexAttributesById(attributes),

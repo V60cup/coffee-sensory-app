@@ -1,4 +1,4 @@
-# Coffee Sensory App — Esqueleto
+# Ensamble — Esqueleto
 
 App para registrar anotaciones sensoriales de café, con sesiones colaborativas
 tipo Master/Catador, motor de scoring configurable y dashboard imprimible.

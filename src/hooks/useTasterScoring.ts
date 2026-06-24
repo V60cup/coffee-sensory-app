@@ -38,6 +38,11 @@ export function useTasterScoring({
   const [notes, setNotes] = useState('');
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Evita que el efecto de persistencia dispare una escritura en el montaje
+  // inicial (cuando selections === initialSelections, no hay nada nuevo que
+  // guardar). Esto eliminaba una escritura de red "gratis" cada vez que el
+  // catador cambiaba de café, antes de tocar nada.
+  const isFirstRender = useRef(true);
 
   const liveScore = useMemo(() => {
     return computeScore({
@@ -73,11 +78,27 @@ export function useTasterScoring({
   ]);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    debounceRef.current = setTimeout(persist, debounceMs);
+    // La primera selección de la sesión de catación para este café se guarda
+    // de inmediato (sin esperar el debounce): así el Master ve aparecer al
+    // catador en el dashboard en vivo sin demora perceptible. Los cambios
+    // siguientes (ajustar intensidad, agregar más descriptores) sí usan
+    // debounce para no saturar Firestore con cada toque.
+    const isFirstSelection = selections.length === 1 && notes === '';
+
+    if (isFirstSelection) {
+      persist();
+    } else {
+      debounceRef.current = setTimeout(persist, debounceMs);
+    }
 
     return () => {
       if (debounceRef.current) {

@@ -25,6 +25,7 @@ import {
 } from '../services/sessionService';
 
 import {
+  getDefaultFlavorAttributes,
   getFlavorAttributesForOrg,
   indexAttributesById,
 } from '../services/flavorAttributeService';
@@ -39,18 +40,26 @@ interface Props {
   sessionId: string;
   masterId: string;
   masterName: string;
+  /** organizationId del Master, si pertenece a alguna. */
+  organizationId?: string | null;
 }
 
 export function MasterDashboardScreen({
   sessionId,
   masterId,
   masterName,
+  organizationId = null,
 }: Props) {
   const { theme } = useTheme();
 
   const [session, setSession] = useState<TastingSession | null>(null);
   const [coffees, setCoffees] = useState<SessionCoffee[]>([]);
-  const [attributes, setAttributes] = useState<FlavorAttribute[]>([]);
+  // Igual que en TasterScoringScreen: arrancamos con los defaults ya
+  // disponibles en memoria. Si hay organización, se refrescan en el efecto
+  // de abajo; si no, esto es todo lo que se necesita.
+  const [attributes, setAttributes] = useState<FlavorAttribute[]>(
+    getDefaultFlavorAttributes
+  );
   const [newCoffeeName, setNewCoffeeName] = useState('');
   const [addingCoffee, setAddingCoffee] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +75,14 @@ export function MasterDashboardScreen({
   }, [sessionId]);
 
   useEffect(() => {
-    getFlavorAttributesForOrg(null)
+    if (!organizationId) return;
+
+    getFlavorAttributesForOrg(organizationId)
       .then(setAttributes)
       .catch((err) => {
         console.warn('No se pudieron cargar atributos:', err);
       });
-  }, []);
+  }, [organizationId]);
 
   const attributesById = useMemo(
     () => indexAttributesById(attributes),
@@ -133,7 +144,7 @@ export function MasterDashboardScreen({
         <View style={styles.topBar}>
           <View style={styles.titleBlock}>
             <Text style={[styles.eyebrow, { color: theme.colors.accent }]}>
-              CoffeeMind
+              Ensamble
             </Text>
 
             <Text style={[styles.title, { color: theme.colors.text }]}>
