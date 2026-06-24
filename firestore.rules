@@ -1,0 +1,112 @@
+// firestore.rules
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSessionMaster(sessionId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/sessions/$(sessionId)).data.masterId == request.auth.uid;
+    }
+
+    function keepsSameOrganization() {
+      return !('organizationId' in request.resource.data) ||
+        request.resource.data.organizationId == resource.data.organizationId;
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+        request.resource.data.masterId == request.auth.uid;
+
+      allow update: if isSessionMaster(sessionId);
+      allow delete: if isSessionMaster(sessionId);
+
+      match /participants/{userId} {
+        allow read: if isSignedIn();
+
+        allow create, update: if isSignedIn() &&
+          request.auth.uid == userId &&
+          (
+            request.resource.data.role == 'taster' ||
+            isSessionMaster(sessionId)
+          );
+
+        allow delete: if isSignedIn() &&
+          (
+            request.auth.uid == userId ||
+            isSessionMaster(sessionId)
+          );
+      }
+
+      match /coffees/{coffeeId} {
+        allow read: if isSignedIn();
+
+        allow create, update, delete: if isSessionMaster(sessionId);
+
+        match /scores/{userId} {
+          allow read: if isSignedIn();
+
+          allow create, update: if isSignedIn() &&
+            request.auth.uid == userId;
+
+          allow delete: if isSignedIn() &&
+            (
+              request.auth.uid == userId ||
+              isSessionMaster(sessionId)
+            );
+        }
+      }
+    }
+
+    match /joinCodes/{code} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+        isSessionMaster(request.resource.data.sessionId);
+
+      allow delete: if isSignedIn() &&
+        isSessionMaster(resource.data.sessionId);
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == userId;
+    }
+
+    match /flavorAttributes/{attributeId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn();
+
+      allow update: if isSignedIn() &&
+        resource.data.organizationId != null &&
+        request.resource.data.organizationId == resource.data.organizationId;
+
+      allow delete: if isSignedIn() &&
+        resource.data.organizationId != null;
+    }
+
+    match /scoringProfiles/{profileId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+        request.resource.data.organizationId != null;
+
+      allow update: if isSignedIn() &&
+        resource.data.organizationId != null &&
+        request.resource.data.organizationId == resource.data.organizationId;
+
+      allow delete: if isSignedIn() &&
+        resource.data.organizationId != null;
+    }
+  }
+}

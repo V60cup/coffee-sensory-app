@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Coffee Sensory App",
+    "slug": "coffee-sensory-app",
+    "scheme": "coffeesensory",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-font"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tuempresa.coffeesensoryapp"
+    },
+    "android": {
+      "package": "com.tuempresa.coffeesensoryapp",
+      "adaptiveIcon": {
+        "backgroundColor": "#FAF7F2"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    }
+  }
+}
