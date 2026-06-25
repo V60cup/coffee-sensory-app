@@ -3,21 +3,20 @@
 import {
   addDoc,
   collection,
+  collectionGroup,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 import { auth, db } from '../config/firebase';
-import {
-  Role,
-  SessionCoffee,
-  TastingSession,
-} from '../types/domain';
+import { Role, SessionCoffee, TastingSession } from '../types/domain';
 import {
   generateUniqueJoinCode,
   releaseJoinCode,
@@ -40,6 +39,25 @@ function normalizeOptionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
 
   return trimmed ? trimmed : undefined;
+}
+
+/**
+ * Firestore no permite guardar propiedades con valor undefined.
+ * Esta función elimina esas propiedades antes de addDoc/updateDoc.
+ */
+function removeUndefinedValues<T extends Record<string, unknown>>(
+  data: T
+): Record<string, unknown> {
+  return Object.entries(data).reduce<Record<string, unknown>>(
+    (acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+
+      return acc;
+    },
+    {}
+  );
 }
 
 async function assertCurrentUserIsSessionMaster(
@@ -137,9 +155,6 @@ export async function joinSessionByCode(args: {
 
 /**
  * Agregar café definitivo a la sesión.
- *
- * Aquí sí usamos Firestore porque el café ya dejó de ser borrador y pasa a ser
- * parte real de la sesión.
  */
 export async function addCoffeeToSession(args: {
   sessionId: string;
@@ -158,7 +173,7 @@ export async function addCoffeeToSession(args: {
 
   const coffeesCol = collection(db, 'sessions', args.sessionId, 'coffees');
 
-  const ref = await addDoc(coffeesCol, {
+  const coffeePayload = removeUndefinedValues({
     sessionId: args.sessionId,
     masterId: currentUserId,
     sessionName: args.sessionName ?? session.name,
@@ -173,6 +188,8 @@ export async function addCoffeeToSession(args: {
     harvestDate: normalizeOptionalText(args.harvestDate),
     description: normalizeOptionalText(args.description),
   });
+
+  const ref = await addDoc(coffeesCol, coffeePayload);
 
   return ref.id;
 }
@@ -201,26 +218,136 @@ export function listenToCoffees(
 }
 
 /**
+ * Listar sesiones del Master.
+ *
+ * Es una lectura puntual, no un listener en tiempo real, para ahorrar uso de
+ * Firestore en el historial.
+ */
+export async function listMasterSessions(
+  masterId: string,
+  options?: {
+    includeArchived?: boolean;
+  }
+): Promise<TastingSession[]> {
+  const currentUserId = getCurrentUserId();
+
+  if (currentUserId !== masterId) {
+    throw new Error('No puedes listar sesiones de otro usuario.');
+  }
+
+  const q = query(sessionsCol, where('masterId', '==', masterId));
+  const snap = await getDocs(q);
+
+  return snap.docs
+    .map(
+      (d) =>
+        ({
+          id: d.id,
+          ...d.data(),
+        }) as TastingSession
+    )
+    .filter((session) => {
+      if (options?.includeArchived) return true;
+
+      return !session.archivedAt;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/**
+ * Listar todos los cafés creados por el Master.
+ *
+ * Usa collectionGroup('coffees') para consultar cafés de todas las sesiones.
+ * Es una lectura puntual para no mantener listeners abiertos en historial.
+ */
+export async function listMasterCoffees(
+  masterId: string
+): Promise<SessionCoffee[]> {
+  const currentUserId = getCurrentUserId();
+
+  if (currentUserId !== masterId) {
+    throw new Error('No puedes listar cafés de otro usuario.');
+  }
+
+  const coffeesGroup = collectionGroup(db, 'coffees');
+  const q = query(coffeesGroup, where('masterId', '==', masterId));
+  const snap = await getDocs(q);
+
+  return snap.docs
+    .map(
+      (d) =>
+        ({
+          id: d.id,
+          ...d.data(),
+        }) as SessionCoffee
+    )
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/**
+ * Actualizar configuración de modo ciego.
+ */
+export async function updateSessionBlindSettings(args: {
+  sessionId: string;
+  isBlind: boolean;
+  hideNamesFromMaster: boolean;
+}): Promise<void> {
+  await assertCurrentUserIsSessionMaster(args.sessionId);
+
+  const sessionRef = doc(db, 'sessions', args.sessionId);
+
+  await updateDoc(sessionRef, {
+    isBlind: args.isBlind,
+    hideNamesFromMaster: args.isBlind ? args.hideNamesFromMaster : false,
+  });
+}
+
+/**
  * Cerrar sesión.
  */
 export async function closeSession(sessionId: string): Promise<void> {
-  await assertCurrentUserIsSessionMaster(sessionId);
+  const session = await assertCurrentUserIsSessionMaster(sessionId);
 
   const sessionRef = doc(db, 'sessions', sessionId);
-  const snap = await getDoc(sessionRef);
-
-  const joinCode = snap.exists()
-    ? (snap.data() as TastingSession).joinCode
-    : undefined;
+  const closedAt = Date.now();
 
   await updateDoc(sessionRef, {
     status: 'closed',
-    closedAt: Date.now(),
+    closedAt,
   });
 
-  if (joinCode) {
-    releaseJoinCode(joinCode).catch((err) =>
+  if (session.joinCode) {
+    releaseJoinCode(session.joinCode).catch((err) =>
       console.warn('No se pudo liberar el joinCode:', err)
+    );
+  }
+}
+
+/**
+ * Archivar sesión.
+ *
+ * Archivar no elimina subcolecciones. Solo oculta la sesión del historial
+ * normal y, si estaba abierta, la cierra para liberar el código.
+ */
+export async function archiveSession(sessionId: string): Promise<void> {
+  const session = await assertCurrentUserIsSessionMaster(sessionId);
+  const currentUserId = getCurrentUserId();
+  const sessionRef = doc(db, 'sessions', sessionId);
+
+  const now = Date.now();
+
+  const updatePayload = removeUndefinedValues({
+    archivedAt: now,
+    archivedBy: currentUserId,
+    status: session.status === 'open' ? 'closed' : undefined,
+    closedAt: session.status === 'open' ? now : undefined,
+  });
+
+  await updateDoc(sessionRef, updatePayload);
+
+  if (session.status === 'open' && session.joinCode) {
+    releaseJoinCode(session.joinCode).catch((err) =>
+      console.warn('No se pudo liberar el joinCode al archivar:', err)
     );
   }
 }

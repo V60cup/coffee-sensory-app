@@ -10,26 +10,38 @@ import {
   TextInput,
 } from 'react-native';
 
-import { SessionCoffee, FlavorAttribute } from '../types/domain';
-
-import { listenToCoffees } from '../services/sessionService';
-
+import {
+  BASIC_TASTE_SCALE,
+  FlavorAttribute,
+  SessionCoffee,
+  SUITABILITY_SCALE,
+  TastingSession,
+} from '../types/domain';
+import { listenToCoffees, listenToSession } from '../services/sessionService';
 import {
   getDefaultFlavorAttributes,
   getFlavorAttributesForOrg,
   indexAttributesById,
 } from '../services/flavorAttributeService';
-
 import { useTasterProfile } from '../hooks/useTasterProfile';
 import { useTheme } from '../theme/ThemeProvider';
 import { FlavorWheel } from './FlavorWheel';
 import { RatingSlider } from './ui/RatingSlider';
+import {
+  canShowCoffeeMetadata,
+  getCoffeeDisplayName,
+  getCoffeeSampleLabel,
+} from '../utils/coffeeDisplay';
 
 interface Props {
   sessionId: string;
   userId: string;
   displayName: string;
-  /** organizationId del catador actual, si pertenece a alguna. null en el caso típico de catador invitado. */
+
+  /**
+   * organizationId del catador actual, si pertenece a alguna.
+   * null en el caso típico de catador invitado.
+   */
   organizationId?: string | null;
 }
 
@@ -40,19 +52,23 @@ export function TasterScoringScreen({
   organizationId = null,
 }: Props) {
   const { theme } = useTheme();
+
+  const [session, setSession] = useState<TastingSession | null>(null);
   const [coffees, setCoffees] = useState<SessionCoffee[]>([]);
   const [selectedCoffeeId, setSelectedCoffeeId] = useState<string | null>(null);
 
-  // Estado inicial síncrono: los defaults ya están en memoria, no hace falta
-  // pasar por un ciclo de "loading" para mostrarlos. Esto es lo que el catador
-  // ve en el primer frame, sin esperar ningún round-trip de red.
   const [attributes, setAttributes] = useState<FlavorAttribute[]>(
     getDefaultFlavorAttributes
   );
-  // Solo entra en estado "loading" cuando SÍ hay que ir a buscar descriptores
-  // custom de una organización a Firestore. Sin organización, nunca se activa.
+
   const [isLoadingAttributes, setIsLoadingAttributes] = useState(false);
   const [attributesError, setAttributesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = listenToSession(sessionId, setSession);
+
+    return unsubscribe;
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -77,8 +93,6 @@ export function TasterScoringScreen({
   }, [sessionId]);
 
   useEffect(() => {
-    // Sin organización: ya tenemos los defaults desde el estado inicial,
-    // no hay nada más que cargar.
     if (!organizationId) {
       setAttributes(getDefaultFlavorAttributes());
       setIsLoadingAttributes(false);
@@ -133,7 +147,9 @@ export function TasterScoringScreen({
       <View
         style={[
           styles.emptyContainer,
-          { backgroundColor: theme.colors.background },
+          {
+            backgroundColor: theme.colors.background,
+          },
         ]}
       >
         <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
@@ -149,7 +165,12 @@ export function TasterScoringScreen({
 
   return (
     <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+        },
+      ]}
     >
       <Text style={[styles.userLabel, { color: theme.colors.textMuted }]}>
         Catando como: {displayName}
@@ -157,12 +178,13 @@ export function TasterScoringScreen({
 
       <ScrollView
         horizontal
+        showsHorizontalScrollIndicator={false}
         style={styles.coffeeSelector}
         contentContainerStyle={styles.coffeeSelectorContent}
-        showsHorizontalScrollIndicator={false}
       >
         {coffees.map((coffee) => {
           const isActive = coffee.id === selectedCoffeeId;
+          const sampleLabel = getCoffeeSampleLabel(coffee);
 
           return (
             <Pressable
@@ -173,6 +195,10 @@ export function TasterScoringScreen({
                   backgroundColor: isActive
                     ? theme.colors.primary
                     : theme.colors.surfaceAlt,
+                  borderColor: isActive
+                    ? theme.colors.primary
+                    : theme.colors.border,
+                  borderWidth: 1,
                 },
               ]}
               onPress={() => setSelectedCoffeeId(coffee.id)}
@@ -181,12 +207,12 @@ export function TasterScoringScreen({
                 style={[
                   styles.coffeeChipText,
                   {
-                    color: isActive ? theme.colors.white : theme.colors.text,
-                    fontWeight: isActive ? '700' : '600',
+                    color: isActive ? '#FFFFFF' : theme.colors.textMuted,
+                    fontWeight: isActive ? '900' : '700',
                   },
                 ]}
               >
-                {coffee.tableLabel}
+                {sampleLabel}
               </Text>
             </Pressable>
           );
@@ -194,7 +220,7 @@ export function TasterScoringScreen({
       </ScrollView>
 
       <CoffeeScoringPanel
-        key={selectedCoffee.id}
+        session={session}
         sessionId={sessionId}
         coffee={selectedCoffee}
         userId={userId}
@@ -209,6 +235,7 @@ export function TasterScoringScreen({
 }
 
 interface CoffeeScoringPanelProps {
+  session: TastingSession | null;
   sessionId: string;
   coffee: SessionCoffee;
   userId: string;
@@ -220,16 +247,17 @@ interface CoffeeScoringPanelProps {
 }
 
 function CoffeeScoringPanel({
+  session,
   sessionId,
   coffee,
   userId,
   displayName,
   attributes,
-  attributesById,
   isLoadingAttributes,
   attributesError,
 }: CoffeeScoringPanelProps) {
   const { theme } = useTheme();
+
   const {
     selections,
     basicTastes,
@@ -253,6 +281,26 @@ function CoffeeScoringPanel({
     }, {} as Record<string, number>);
   }, [selections]);
 
+  const coffeeDisplayName = getCoffeeDisplayName({
+    coffee,
+    session,
+    viewerRole: 'taster',
+  });
+
+  const sampleLabel = getCoffeeSampleLabel(coffee);
+
+  const showCoffeeMetadata = canShowCoffeeMetadata({
+    session,
+    viewerRole: 'taster',
+  });
+
+  const coffeeMeta = [
+    coffee.origin ? `Origen: ${coffee.origin}` : null,
+    coffee.variety ? `Variedad: ${coffee.variety}` : null,
+    coffee.process ? `Proceso: ${coffee.process}` : null,
+    coffee.harvestDate ? `Cosecha: ${coffee.harvestDate}` : null,
+  ].filter(Boolean) as string[];
+
   const hasSelectedDescriptors = selections.length > 0;
   const showDescriptorWarning = !isLoadingAttributes && !hasSelectedDescriptors;
 
@@ -270,18 +318,82 @@ function CoffeeScoringPanel({
           },
         ]}
       >
-        <Text style={[styles.sampleLabel, { color: theme.colors.accent }]}>
-          Muestra {coffee.tableLabel}
+        <Text style={[styles.sampleLabel, { color: theme.colors.textMuted }]}>
+          {sampleLabel}
         </Text>
 
         <Text style={[styles.coffeeName, { color: theme.colors.text }]}>
-          {coffee.name}
+          {coffeeDisplayName}
         </Text>
 
+        {showCoffeeMetadata && coffeeMeta.length > 0 && (
+          <View style={styles.metaWrap}>
+            {coffeeMeta.map((item) => (
+              <View
+                key={item}
+                style={[
+                  styles.metaChip,
+                  {
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.metaText,
+                    {
+                      color: theme.colors.textMuted,
+                    },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {showCoffeeMetadata && coffee.description && (
+          <Text
+            style={[
+              styles.description,
+              {
+                color: theme.colors.textMuted,
+              },
+            ]}
+          >
+            {coffee.description}
+          </Text>
+        )}
+
         <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-          Selecciona descriptores de la rueda, califica los gustos básicos y
-          la idoneidad del café para construir su perfil sensorial completo.
+          Selecciona descriptores de la rueda, califica los gustos básicos y la
+          idoneidad del café para construir su perfil sensorial completo.
         </Text>
+
+        {session?.isBlind && (
+          <View
+            style={[
+              styles.blindNotice,
+              {
+                backgroundColor: theme.colors.surfaceAlt,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.blindNoticeText,
+                {
+                  color: theme.colors.textMuted,
+                },
+              ]}
+            >
+              Modo ciego activo: estás evaluando por código de muestra.
+            </Text>
+          </View>
+        )}
       </View>
 
       {isLoadingAttributes && (
@@ -289,12 +401,12 @@ function CoffeeScoringPanel({
           style={[
             styles.infoBox,
             {
-              backgroundColor: theme.colors.surface,
+              backgroundColor: theme.colors.surfaceAlt,
               borderColor: theme.colors.border,
             },
           ]}
         >
-          <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+          <Text style={[styles.infoText, { color: theme.colors.textMuted }]}>
             Cargando rueda de sabores...
           </Text>
         </View>
@@ -305,7 +417,7 @@ function CoffeeScoringPanel({
           style={[
             styles.errorBox,
             {
-              backgroundColor: theme.colors.surface,
+              backgroundColor: theme.colors.surfaceAlt,
               borderColor: theme.colors.danger,
             },
           ]}
@@ -321,12 +433,12 @@ function CoffeeScoringPanel({
           style={[
             styles.warningBox,
             {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.warning,
+              backgroundColor: theme.colors.surfaceAlt,
+              borderColor: theme.colors.border,
             },
           ]}
         >
-          <Text style={[styles.warningText, { color: theme.colors.warning }]}>
+          <Text style={[styles.warningText, { color: theme.colors.textMuted }]}>
             Aún no has seleccionado descriptores. Toca la rueda para empezar a
             caracterizar el café.
           </Text>
@@ -357,18 +469,24 @@ function CoffeeScoringPanel({
         <RatingSlider
           label="Dulce"
           value={basicTastes.sweet}
+          min={BASIC_TASTE_SCALE.min}
+          max={BASIC_TASTE_SCALE.max}
           onChange={(value) => setBasicTaste('sweet', value)}
         />
 
         <RatingSlider
           label="Ácido / agrio"
           value={basicTastes.sourAcidic}
+          min={BASIC_TASTE_SCALE.min}
+          max={BASIC_TASTE_SCALE.max}
           onChange={(value) => setBasicTaste('sourAcidic', value)}
         />
 
         <RatingSlider
           label="Amargo"
           value={basicTastes.bitter}
+          min={BASIC_TASTE_SCALE.min}
+          max={BASIC_TASTE_SCALE.max}
           onChange={(value) => setBasicTaste('bitter', value)}
         />
       </View>
@@ -389,6 +507,8 @@ function CoffeeScoringPanel({
         <RatingSlider
           label="Idoneidad"
           value={suitability}
+          min={SUITABILITY_SCALE.min}
+          max={SUITABILITY_SCALE.max}
           onChange={setSuitability}
         />
       </View>
@@ -415,12 +535,12 @@ function CoffeeScoringPanel({
               color: theme.colors.text,
             },
           ]}
-          multiline
-          placeholder="Describe aroma, sabor, defectos, sensaciones o cualquier observación relevante..."
+          placeholder="Describe textura, balance, recuerdos aromáticos o cualquier observación relevante."
           placeholderTextColor={theme.colors.textMuted}
+          multiline
+          textAlignVertical="top"
           value={notes}
           onChangeText={setNotes}
-          textAlignVertical="top"
         />
       </View>
     </ScrollView>
@@ -431,147 +551,155 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
-
   emptyTitle: {
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 8,
   },
-
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
   },
-
   userLabel: {
     fontSize: 12,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+    fontWeight: '700',
   },
-
   coffeeSelector: {
     maxHeight: 60,
   },
-
   coffeeSelectorContent: {
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
-
   coffeeChip: {
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 8,
   },
-
   coffeeChipText: {
     fontSize: 14,
   },
-
   scoringContainer: {
     flex: 1,
   },
-
   scoringContent: {
     padding: 16,
     paddingBottom: 40,
   },
-
   coffeeCard: {
     borderRadius: 18,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
   },
-
   sampleLabel: {
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-
   coffeeName: {
     fontSize: 24,
     fontWeight: '800',
   },
-
+  metaWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 12,
+  },
+  metaChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  description: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10,
+  },
   helperText: {
     marginTop: 8,
     fontSize: 13,
     lineHeight: 18,
   },
-
+  blindNotice: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 12,
+  },
+  blindNoticeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
   basicTastesCard: {
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
   },
-
   basicTastesTitle: {
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 14,
   },
-
   infoBox: {
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
   },
-
   infoText: {
     fontWeight: '700',
   },
-
   warningBox: {
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
   },
-
   warningText: {
     fontWeight: '700',
     lineHeight: 19,
   },
-
   errorBox: {
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
   },
-
   errorText: {
     fontWeight: '700',
     lineHeight: 19,
   },
-
   notesCard: {
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
   },
-
   notesLabel: {
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 8,
   },
-
   notesInput: {
     minHeight: 120,
     borderWidth: 1,

@@ -6,19 +6,24 @@ import { radius, spacing } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
 
 export function ThemeToggle() {
-  const { theme, mode, toggleTheme } = useTheme();
+  const { mode, toggleTheme } = useTheme();
   const { width } = useWindowDimensions();
 
   const isDark = mode === 'dark';
   const compact = width < 420;
 
   const label = isDark ? 'Claro' : 'Oscuro';
-  const fullLabel = isDark ? 'Modo claro' : 'Modo oscuro';
-  const icon = isDark ? '☀️' : '🌙';
+  const fullLabel = isDark ? 'modo claro' : 'modo oscuro';
 
-  const backgroundColor = isDark ? '#F7F1EA' : '#2F2A26';
-  const borderColor = isDark ? '#F7F1EA' : '#2F2A26';
-  const textColor = isDark ? '#171513' : '#FFFFFF';
+  /**
+   * Usamos símbolos de texto, no emoji, para que el color sea controlable.
+   * En algunos dispositivos los emoji ignoran el color del Text.
+   */
+  const icon = isDark ? '☀' : '◐';
+
+  const backgroundColor = isDark ? '#FFFFFF' : '#111111';
+  const borderColor = isDark ? '#FFFFFF' : '#111111';
+  const textColor = isDark ? '#111111' : '#FFFFFF';
 
   return (
     <Pressable
@@ -35,7 +40,16 @@ export function ThemeToggle() {
         },
       ]}
     >
-      <Text style={styles.icon}>{icon}</Text>
+      <Text
+        style={[
+          styles.icon,
+          {
+            color: textColor,
+          },
+        ]}
+      >
+        {icon}
+      </Text>
 
       {!compact && (
         <Text
@@ -62,27 +76,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'flex-start',
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: 2,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     gap: spacing.xs,
-    minHeight: 40,
-    maxWidth: 118,
+    minHeight: 42,
+    maxWidth: 122,
   },
   buttonCompact: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     paddingHorizontal: 0,
     paddingVertical: 0,
-    maxWidth: 42,
+    maxWidth: 44,
   },
   icon: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
   },
   text: {
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
   },
 });

@@ -33,12 +33,17 @@ import { useTheme } from '../theme/ThemeProvider';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { Card } from './ui/Card';
 import { AppButton } from './ui/AppButton';
+import { SessionBlindSettingsCard } from './SessionBlindSettingsCard';
 import {
   getFlavorColor,
   getFlavorDisplayName,
   shadeColor,
   tintColor,
 } from '../data/flavorLocalization';
+import {
+  canShowCoffeeMetadata,
+  getCoffeeSampleLabel,
+} from '../utils/coffeeDisplay';
 
 interface Props {
   sessionId: string;
@@ -144,6 +149,7 @@ export function MasterDashboardScreen({
   const [codeCopied, setCodeCopied] = useState(false);
 
   const sessionTitle = session?.name ?? 'Sesión de cata';
+
   const draftStorageKey = useMemo(
     () => getCoffeeDraftStorageKey(sessionId, masterId),
     [sessionId, masterId]
@@ -412,6 +418,8 @@ export function MasterDashboardScreen({
           </Card>
         )}
 
+        {session && <SessionBlindSettingsCard session={session} />}
+
         <View style={styles.kpiGrid}>
           <DashboardKpi label="Cafés" value={coffees.length} />
           <DashboardKpi label="Estado" value={session?.status ?? '—'} />
@@ -553,6 +561,7 @@ export function MasterDashboardScreen({
             coffees.map((coffee) => (
               <CoffeeResultCard
                 key={coffee.id}
+                session={session}
                 sessionId={sessionId}
                 coffee={coffee}
                 attributesById={attributesById}
@@ -630,10 +639,12 @@ function DashboardKpi({
 }
 
 function CoffeeResultCard({
+  session,
   sessionId,
   coffee,
   attributesById,
 }: {
+  session: TastingSession | null;
   sessionId: string;
   coffee: SessionCoffee;
   attributesById: Record<string, FlavorAttribute>;
@@ -646,6 +657,14 @@ function CoffeeResultCard({
     attributesById
   );
 
+  const showCoffeeMetadata = canShowCoffeeMetadata({
+    session,
+    viewerRole: 'master',
+  });
+
+  const sampleLabel = getCoffeeSampleLabel(coffee);
+  const coffeeTitle = showCoffeeMetadata ? result?.coffeeName ?? coffee.name : sampleLabel;
+
   if (!result) {
     return null;
   }
@@ -655,21 +674,21 @@ function CoffeeResultCard({
     coffee.variety ? `Variedad: ${coffee.variety}` : null,
     coffee.process ? `Proceso: ${coffee.process}` : null,
     coffee.harvestDate ? `Cosecha: ${coffee.harvestDate}` : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
 
   return (
     <Card style={styles.resultCard} elevated>
       <View style={styles.resultHeaderRow}>
         <View style={styles.resultHeaderText}>
           <Text style={[styles.sampleLabel, { color: theme.colors.textMuted }]}>
-            Muestra #{result.tableLabel}
+            {sampleLabel}
           </Text>
 
           <Text style={[styles.resultCoffeeName, { color: theme.colors.text }]}>
-            {result.coffeeName}
+            {coffeeTitle}
           </Text>
 
-          {coffeeMeta.length > 0 && (
+          {showCoffeeMetadata && coffeeMeta.length > 0 && (
             <View style={styles.coffeeMetaWrap}>
               {coffeeMeta.map((item) => (
                 <View
@@ -697,7 +716,7 @@ function CoffeeResultCard({
             </View>
           )}
 
-          {coffee.description && (
+          {showCoffeeMetadata && coffee.description && (
             <Text
               style={[
                 styles.coffeeDescription,

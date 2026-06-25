@@ -30,8 +30,10 @@ type MasterAuthMode = 'login' | 'register';
 
 export default function Home() {
   const router = useRouter();
-  const { theme } = useTheme();
+  const { theme, mode } = useTheme();
   const { user, loading: authLoading } = useAuth();
+
+  const isDark = mode === 'dark';
 
   const [tab, setTab] = useState<'taster' | 'master'>('taster');
 
@@ -51,9 +53,35 @@ export default function Home() {
 
   const actionDisabled = busy || authLoading;
 
+  const selectedSegmentBackground = isDark ? '#E7D0B5' : '#D8BFA2';
+  const selectedSegmentText = '#1F1712';
+  const inactiveSegmentText = isDark ? '#EDE2D8' : theme.colors.textMuted;
+
+  const primaryButtonBackground = actionDisabled
+    ? isDark
+      ? '#6B5B50'
+      : '#E5D8C9'
+    : isDark
+      ? '#E7D0B5'
+      : theme.colors.primary;
+
+  const primaryButtonTextColor = actionDisabled
+    ? isDark
+      ? '#FFFFFF'
+      : '#3A2D25'
+    : isDark
+      ? '#1F1712'
+      : '#FFFFFF';
+
+  const secondaryButtonBackground = isDark ? '#211C18' : '#F6EEE5';
+  const secondaryButtonBorder = isDark ? '#6B5B50' : '#D9C8B8';
+  const secondaryButtonText = isDark ? '#F7EEE6' : '#2B211B';
+
   const handleJoinAsTaster = async () => {
     if (authLoading) {
-      setJoinError('Estamos preparando la conexión. Intenta nuevamente en un momento.');
+      setJoinError(
+        'Estamos preparando la conexión. Intenta nuevamente en un momento.'
+      );
       return;
     }
 
@@ -100,7 +128,9 @@ export default function Home() {
 
   const handleMasterAuthAndCreate = async () => {
     if (authLoading) {
-      setAuthError('Estamos preparando la conexión. Intenta nuevamente en un momento.');
+      setAuthError(
+        'Estamos preparando la conexión. Intenta nuevamente en un momento.'
+      );
       return;
     }
 
@@ -167,6 +197,22 @@ export default function Home() {
     }
   };
 
+  const handleOpenHistory = () => {
+    if (authLoading) {
+      setAuthError(
+        'Estamos preparando la conexión. Intenta nuevamente en un momento.'
+      );
+      return;
+    }
+
+    if (!user || user.isAnonymous) {
+      setAuthError('Inicia sesión como master para ver tu historial.');
+      return;
+    }
+
+    router.push('/(app)/history');
+  };
+
   return (
     <ScrollView
       style={{ backgroundColor: theme.colors.background }}
@@ -174,7 +220,7 @@ export default function Home() {
     >
       <View style={styles.page}>
         <View style={styles.topBar}>
-          <View>
+          <View style={styles.titleBlock}>
             <Text style={[styles.brandEyebrow, { color: theme.colors.accent }]}>
               Ensamble
             </Text>
@@ -221,10 +267,7 @@ export default function Home() {
               },
             ]}
           >
-            <ActivityIndicator
-              size="small"
-              color={theme.colors.primarySoft}
-            />
+            <ActivityIndicator size="small" color={theme.colors.primarySoft} />
 
             <Text
               style={[
@@ -250,7 +293,7 @@ export default function Home() {
             style={[
               styles.segmentButton,
               tab === 'taster' && {
-                backgroundColor: theme.colors.primarySoft,
+                backgroundColor: selectedSegmentBackground,
               },
             ]}
             onPress={() => {
@@ -263,7 +306,9 @@ export default function Home() {
                 styles.segmentText,
                 {
                   color:
-                    tab === 'taster' ? '#FFFFFF' : theme.colors.textMuted,
+                    tab === 'taster'
+                      ? selectedSegmentText
+                      : inactiveSegmentText,
                 },
               ]}
             >
@@ -275,7 +320,7 @@ export default function Home() {
             style={[
               styles.segmentButton,
               tab === 'master' && {
-                backgroundColor: theme.colors.primarySoft,
+                backgroundColor: selectedSegmentBackground,
               },
             ]}
             onPress={() => {
@@ -288,7 +333,9 @@ export default function Home() {
                 styles.segmentText,
                 {
                   color:
-                    tab === 'master' ? '#FFFFFF' : theme.colors.textMuted,
+                    tab === 'master'
+                      ? selectedSegmentText
+                      : inactiveSegmentText,
                 },
               ]}
             >
@@ -373,17 +420,25 @@ export default function Home() {
               style={[
                 styles.primaryButton,
                 {
-                  backgroundColor: theme.colors.primary,
-                  opacity: actionDisabled ? 0.6 : 1,
+                  backgroundColor: primaryButtonBackground,
+                  borderColor: primaryButtonBackground,
+                  opacity: actionDisabled ? 0.86 : 1,
                 },
               ]}
               onPress={handleJoinAsTaster}
               disabled={actionDisabled}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={primaryButtonTextColor} />
               ) : (
-                <Text style={styles.primaryButtonText}>
+                <Text
+                  style={[
+                    styles.primaryButtonText,
+                    {
+                      color: primaryButtonTextColor,
+                    },
+                  ]}
+                >
                   {authLoading ? 'Preparando...' : 'Unirme'}
                 </Text>
               )}
@@ -416,7 +471,7 @@ export default function Home() {
                 style={[
                   styles.miniSegment,
                   masterAuthMode === 'login' && {
-                    backgroundColor: theme.colors.accent,
+                    backgroundColor: selectedSegmentBackground,
                   },
                 ]}
                 onPress={() => {
@@ -430,8 +485,8 @@ export default function Home() {
                     {
                       color:
                         masterAuthMode === 'login'
-                          ? '#FFFFFF'
-                          : theme.colors.textMuted,
+                          ? selectedSegmentText
+                          : inactiveSegmentText,
                     },
                   ]}
                 >
@@ -443,7 +498,7 @@ export default function Home() {
                 style={[
                   styles.miniSegment,
                   masterAuthMode === 'register' && {
-                    backgroundColor: theme.colors.accent,
+                    backgroundColor: selectedSegmentBackground,
                   },
                 ]}
                 onPress={() => {
@@ -457,8 +512,8 @@ export default function Home() {
                     {
                       color:
                         masterAuthMode === 'register'
-                          ? '#FFFFFF'
-                          : theme.colors.textMuted,
+                          ? selectedSegmentText
+                          : inactiveSegmentText,
                     },
                   ]}
                 >
@@ -572,17 +627,25 @@ export default function Home() {
               style={[
                 styles.primaryButton,
                 {
-                  backgroundColor: theme.colors.primary,
-                  opacity: actionDisabled ? 0.6 : 1,
+                  backgroundColor: primaryButtonBackground,
+                  borderColor: primaryButtonBackground,
+                  opacity: actionDisabled ? 0.86 : 1,
                 },
               ]}
               onPress={handleMasterAuthAndCreate}
               disabled={actionDisabled}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={primaryButtonTextColor} />
               ) : (
-                <Text style={styles.primaryButtonText}>
+                <Text
+                  style={[
+                    styles.primaryButtonText,
+                    {
+                      color: primaryButtonTextColor,
+                    },
+                  ]}
+                >
                   {authLoading
                     ? 'Preparando...'
                     : masterAuthMode === 'register'
@@ -590,6 +653,30 @@ export default function Home() {
                       : 'Entrar y crear sesión'}
                 </Text>
               )}
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                {
+                  backgroundColor: secondaryButtonBackground,
+                  borderColor: secondaryButtonBorder,
+                  opacity: authLoading || pressed ? 0.76 : 1,
+                },
+              ]}
+              onPress={handleOpenHistory}
+              disabled={authLoading}
+            >
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  {
+                    color: secondaryButtonText,
+                  },
+                ]}
+              >
+                Ver historial de sesiones
+              </Text>
             </Pressable>
           </View>
         )}
@@ -640,13 +727,17 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   topBar: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: 12,
-  marginBottom: 14,
-  flexWrap: 'wrap',
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
   brandEyebrow: {
     fontSize: 13,
     fontWeight: '900',
@@ -771,15 +862,26 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   primaryButton: {
+    borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 15,
     alignItems: 'center',
     marginTop: 4,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 15,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  secondaryButtonText: {
+    fontWeight: '900',
+    fontSize: 14,
   },
   sessionHint: {
     fontSize: 11,

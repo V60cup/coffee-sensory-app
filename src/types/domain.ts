@@ -65,6 +65,9 @@ export type SessionStatus = 'open' | 'closed';
 
 /**
  * Una sesión de catación.
+ *
+ * archivedAt/archivedBy permiten ocultar una sesión del historial normal sin
+ * borrar definitivamente sus cafés, participantes ni resultados.
  */
 export interface TastingSession {
   id: string;
@@ -76,6 +79,8 @@ export interface TastingSession {
   hideNamesFromMaster?: boolean;
   createdAt: number;
   closedAt?: number;
+  archivedAt?: number;
+  archivedBy?: string;
 }
 
 export interface SessionParticipant {
