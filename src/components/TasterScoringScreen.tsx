@@ -21,6 +21,7 @@ import {
 } from '../services/flavorAttributeService';
 
 import { useTasterProfile } from '../hooks/useTasterProfile';
+import { useTheme } from '../theme/ThemeProvider';
 import { FlavorWheel } from './FlavorWheel';
 import { RatingSlider } from './ui/RatingSlider';
 
@@ -38,6 +39,7 @@ export function TasterScoringScreen({
   displayName,
   organizationId = null,
 }: Props) {
+  const { theme } = useTheme();
   const [coffees, setCoffees] = useState<SessionCoffee[]>([]);
   const [selectedCoffeeId, setSelectedCoffeeId] = useState<string | null>(null);
 
@@ -128,10 +130,17 @@ export function TasterScoringScreen({
 
   if (!selectedCoffee) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>Esperando cafés...</Text>
+      <View
+        style={[
+          styles.emptyContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+          Esperando cafés...
+        </Text>
 
-        <Text style={styles.emptyText}>
+        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
           El Master aún no ha agregado cafés a esta sesión.
         </Text>
       </View>
@@ -139,8 +148,12 @@ export function TasterScoringScreen({
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.userLabel}>Catando como: {displayName}</Text>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <Text style={[styles.userLabel, { color: theme.colors.textMuted }]}>
+        Catando como: {displayName}
+      </Text>
 
       <ScrollView
         horizontal
@@ -148,26 +161,36 @@ export function TasterScoringScreen({
         contentContainerStyle={styles.coffeeSelectorContent}
         showsHorizontalScrollIndicator={false}
       >
-        {coffees.map((coffee) => (
-          <Pressable
-            key={coffee.id}
-            style={[
-              styles.coffeeChip,
-              coffee.id === selectedCoffeeId && styles.coffeeChipActive,
-            ]}
-            onPress={() => setSelectedCoffeeId(coffee.id)}
-          >
-            <Text
-              style={
-                coffee.id === selectedCoffeeId
-                  ? styles.coffeeChipTextActive
-                  : styles.coffeeChipText
-              }
+        {coffees.map((coffee) => {
+          const isActive = coffee.id === selectedCoffeeId;
+
+          return (
+            <Pressable
+              key={coffee.id}
+              style={[
+                styles.coffeeChip,
+                {
+                  backgroundColor: isActive
+                    ? theme.colors.primary
+                    : theme.colors.surfaceAlt,
+                },
+              ]}
+              onPress={() => setSelectedCoffeeId(coffee.id)}
             >
-              {coffee.tableLabel}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[
+                  styles.coffeeChipText,
+                  {
+                    color: isActive ? theme.colors.white : theme.colors.text,
+                    fontWeight: isActive ? '700' : '600',
+                  },
+                ]}
+              >
+                {coffee.tableLabel}
+              </Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       <CoffeeScoringPanel
@@ -206,6 +229,7 @@ function CoffeeScoringPanel({
   isLoadingAttributes,
   attributesError,
 }: CoffeeScoringPanelProps) {
+  const { theme } = useTheme();
   const {
     selections,
     basicTastes,
@@ -237,32 +261,72 @@ function CoffeeScoringPanel({
       style={styles.scoringContainer}
       contentContainerStyle={styles.scoringContent}
     >
-      <View style={styles.coffeeCard}>
-        <Text style={styles.sampleLabel}>Muestra {coffee.tableLabel}</Text>
+      <View
+        style={[
+          styles.coffeeCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sampleLabel, { color: theme.colors.accent }]}>
+          Muestra {coffee.tableLabel}
+        </Text>
 
-        <Text style={styles.coffeeName}>{coffee.name}</Text>
+        <Text style={[styles.coffeeName, { color: theme.colors.text }]}>
+          {coffee.name}
+        </Text>
 
-        <Text style={styles.helperText}>
+        <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
           Selecciona descriptores de la rueda, califica los gustos básicos y
           la idoneidad del café para construir su perfil sensorial completo.
         </Text>
       </View>
 
       {isLoadingAttributes && (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>Cargando rueda de sabores...</Text>
+        <View
+          style={[
+            styles.infoBox,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.infoText, { color: theme.colors.primary }]}>
+            Cargando rueda de sabores...
+          </Text>
         </View>
       )}
 
       {attributesError && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{attributesError}</Text>
+        <View
+          style={[
+            styles.errorBox,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.danger,
+            },
+          ]}
+        >
+          <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+            {attributesError}
+          </Text>
         </View>
       )}
 
       {showDescriptorWarning && (
-        <View style={styles.warningBox}>
-          <Text style={styles.warningText}>
+        <View
+          style={[
+            styles.warningBox,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.warning,
+            },
+          ]}
+        >
+          <Text style={[styles.warningText, { color: theme.colors.warning }]}>
             Aún no has seleccionado descriptores. Toca la rueda para empezar a
             caracterizar el café.
           </Text>
@@ -277,8 +341,18 @@ function CoffeeScoringPanel({
         />
       )}
 
-      <View style={styles.basicTastesCard}>
-        <Text style={styles.basicTastesTitle}>Gustos básicos</Text>
+      <View
+        style={[
+          styles.basicTastesCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.basicTastesTitle, { color: theme.colors.text }]}>
+          Gustos básicos
+        </Text>
 
         <RatingSlider
           label="Dulce"
@@ -299,23 +373,51 @@ function CoffeeScoringPanel({
         />
       </View>
 
-      <View style={styles.basicTastesCard}>
-        <Text style={styles.basicTastesTitle}>Propósito</Text>
+      <View
+        style={[
+          styles.basicTastesCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.basicTastesTitle, { color: theme.colors.text }]}>
+          Propósito
+        </Text>
 
         <RatingSlider
-          label="Idoneidad (suitability)"
+          label="Idoneidad"
           value={suitability}
           onChange={setSuitability}
         />
       </View>
 
-      <View style={styles.notesCard}>
-        <Text style={styles.notesLabel}>Notas adicionales</Text>
+      <View
+        style={[
+          styles.notesCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.notesLabel, { color: theme.colors.text }]}>
+          Notas adicionales
+        </Text>
 
         <TextInput
-          style={styles.notesInput}
+          style={[
+            styles.notesInput,
+            {
+              backgroundColor: theme.colors.surfaceAlt,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            },
+          ]}
           multiline
           placeholder="Describe aroma, sabor, defectos, sensaciones o cualquier observación relevante..."
+          placeholderTextColor={theme.colors.textMuted}
           value={notes}
           onChangeText={setNotes}
           textAlignVertical="top"
@@ -328,7 +430,6 @@ function CoffeeScoringPanel({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
   },
 
   emptyContainer: {
@@ -336,25 +437,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#FAF7F2',
   },
 
   emptyTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#3D2B1F',
     marginBottom: 8,
   },
 
   emptyText: {
     fontSize: 14,
-    color: '#7A6A5C',
     textAlign: 'center',
   },
 
   userLabel: {
     fontSize: 12,
-    color: '#7A6A5C',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
@@ -370,25 +467,14 @@ const styles = StyleSheet.create({
   },
 
   coffeeChip: {
-    backgroundColor: '#EFE7DA',
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 8,
   },
 
-  coffeeChipActive: {
-    backgroundColor: '#6F4E37',
-  },
-
   coffeeChipText: {
-    color: '#3D2B1F',
-    fontWeight: '600',
-  },
-
-  coffeeChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 14,
   },
 
   scoringContainer: {
@@ -401,18 +487,15 @@ const styles = StyleSheet.create({
   },
 
   coffeeCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#EEE6DA',
   },
 
   sampleLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#A47148',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
@@ -420,99 +503,80 @@ const styles = StyleSheet.create({
   coffeeName: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#3D2B1F',
   },
 
   helperText: {
     marginTop: 8,
     fontSize: 13,
-    color: '#7A6A5C',
     lineHeight: 18,
   },
 
   basicTastesCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#EEE6DA',
   },
 
   basicTastesTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#3D2B1F',
     marginBottom: 14,
   },
 
   infoBox: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#EEE6DA',
   },
 
   infoText: {
-    color: '#6F4E37',
     fontWeight: '700',
   },
 
   warningBox: {
-    backgroundColor: '#FFF6E6',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E8C98D',
   },
 
   warningText: {
-    color: '#8A5A16',
     fontWeight: '700',
     lineHeight: 19,
   },
 
   errorBox: {
-    backgroundColor: '#FDECEC',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E7A4A4',
   },
 
   errorText: {
-    color: '#9E2A2B',
     fontWeight: '700',
     lineHeight: 19,
   },
 
   notesCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#EEE6DA',
   },
 
   notesLabel: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#3D2B1F',
     marginBottom: 8,
   },
 
   notesInput: {
     minHeight: 120,
     borderWidth: 1,
-    borderColor: '#D9CFC3',
     borderRadius: 12,
     padding: 12,
-    backgroundColor: '#FAF7F2',
     fontSize: 14,
   },
 });

@@ -34,7 +34,7 @@ export function AppButton({
 
   const backgroundColor =
     variant === 'primary'
-      ? theme.colors.primarySoft
+      ? theme.colors.primary
       : variant === 'danger'
         ? theme.colors.danger
         : theme.colors.surfaceAlt;

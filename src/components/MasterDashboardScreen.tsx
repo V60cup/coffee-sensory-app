@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 
 import {
   FlavorAttribute,
@@ -63,6 +64,7 @@ export function MasterDashboardScreen({
   const [newCoffeeName, setNewCoffeeName] = useState('');
   const [addingCoffee, setAddingCoffee] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   useEffect(() => {
     const unsubscribe = listenToSession(sessionId, setSession);
@@ -126,6 +128,18 @@ export function MasterDashboardScreen({
     }
   };
 
+  const handleCopyJoinCode = async () => {
+    if (!session?.joinCode) return;
+
+    try {
+      await Clipboard.setStringAsync(session.joinCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch (err) {
+      console.warn('No se pudo copiar el código:', err);
+    }
+  };
+
   const sessionTitle = session?.name ?? 'Sesión de cata';
 
   return (
@@ -172,28 +186,47 @@ export function MasterDashboardScreen({
               Código para unirse
             </Text>
 
-            <Text
-              selectable
-              style={[
-                styles.joinCodeValue,
-                {
-                  color: theme.colors.text,
-                },
-              ]}
+            <Pressable
+              onPress={handleCopyJoinCode}
+              style={styles.joinCodeRow}
+              accessibilityRole="button"
+              accessibilityLabel="Copiar código de sesión"
             >
-              {session.joinCode || '------'}
-            </Text>
+              <Text
+                selectable
+                style={[
+                  styles.joinCodeValue,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                {session.joinCode || '------'}
+              </Text>
+
+              <Text
+                style={[
+                  styles.copyIcon,
+                  {
+                    color: theme.colors.primarySoft,
+                  },
+                ]}
+              >
+                {codeCopied ? '✓' : '⧉'}
+              </Text>
+            </Pressable>
 
             <Text
               style={[
                 styles.joinCodeHint,
                 {
-                  color: theme.colors.textMuted,
+                  color: codeCopied ? theme.colors.success : theme.colors.textMuted,
                 },
               ]}
             >
-              Comparte este código con los catadores para que ingresen desde la
-              pantalla inicial.
+              {codeCopied
+                ? '¡Código copiado!'
+                : 'Toca el código para copiarlo y compártelo con los catadores.'}
             </Text>
           </Card>
         )}
@@ -454,7 +487,7 @@ function CoffeeResultCard({
 
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>
-          Top descriptores
+          Descriptores más mencionados
         </Text>
 
         {result.topDescriptors.length === 0 ? (
@@ -596,11 +629,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
 
+  joinCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
   joinCodeValue: {
     fontSize: 44,
     fontWeight: '900',
     letterSpacing: 10,
     marginVertical: 4,
+  },
+
+  copyIcon: {
+    fontSize: 20,
+    fontWeight: '900',
   },
 
   joinCodeHint: {

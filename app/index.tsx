@@ -187,7 +187,7 @@ export default function Home() {
             </Text>
 
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Sensory Cupping
+              Cata Sensorial
             </Text>
           </View>
 
@@ -301,6 +301,10 @@ export default function Home() {
               sesión.
             </Text>
 
+            <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+              Nombre del catador
+            </Text>
+
             <TextInput
               style={[
                 styles.input,
@@ -318,6 +322,10 @@ export default function Home() {
                 if (joinError) setJoinError(null);
               }}
             />
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+              Código de sesión (6 dígitos)
+            </Text>
 
             <TextInput
               style={[
@@ -350,7 +358,7 @@ export default function Home() {
               style={[
                 styles.primaryButton,
                 {
-                  backgroundColor: theme.colors.primarySoft,
+                  backgroundColor: theme.colors.primary,
                   opacity: busy ? 0.6 : 1,
                 },
               ]}
@@ -443,24 +451,34 @@ export default function Home() {
             </View>
 
             {masterAuthMode === 'register' && (
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: theme.colors.surfaceAlt,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                  },
-                ]}
-                placeholder="Tu nombre"
-                placeholderTextColor={theme.colors.textMuted}
-                value={masterDisplayName}
-                onChangeText={(text) => {
-                  setMasterDisplayName(text);
-                  if (authError) setAuthError(null);
-                }}
-              />
+              <>
+                <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+                  Nombre del Master
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
+                  ]}
+                  placeholder="Tu nombre"
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={masterDisplayName}
+                  onChangeText={(text) => {
+                    setMasterDisplayName(text);
+                    if (authError) setAuthError(null);
+                  }}
+                />
+              </>
             )}
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+              Email
+            </Text>
 
             <TextInput
               style={[
@@ -482,6 +500,10 @@ export default function Home() {
               keyboardType="email-address"
             />
 
+            <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+              Contraseña
+            </Text>
+
             <TextInput
               style={[
                 styles.input,
@@ -500,6 +522,10 @@ export default function Home() {
               }}
               secureTextEntry
             />
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+              Nombre de la sesión
+            </Text>
 
             <TextInput
               style={[
@@ -529,7 +555,7 @@ export default function Home() {
               style={[
                 styles.primaryButton,
                 {
-                  backgroundColor: theme.colors.primarySoft,
+                  backgroundColor: theme.colors.primary,
                   opacity: busy ? 0.6 : 1,
                 },
               ]}
@@ -712,6 +738,12 @@ const styles = StyleSheet.create({
   miniSegmentText: {
     fontSize: 12,
     fontWeight: '900',
+  },
+
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
   },
 
   input: {
