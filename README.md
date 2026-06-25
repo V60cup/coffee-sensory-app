@@ -9,7 +9,7 @@ amargo), y qué tan idóneo resulta para su propósito.
 Inspirada en el flujo de [The Coffee Rose](https://rose.cafeimports.com/) de
 Cafe Imports y en las hojas de cata de [CoffeeMind](https://coffee-mind.com/product/work-flow-business-card/)
 
-🔗 **App publicada:** Accede aqui a la app! [Deploy](https://sensory-app-5b255.web.app))_.
+🔗 **App publicada:** Accede aqui a la app! [Deploy](https://sensory-app-5b255.web.app).
 
 ## Stack
 
